@@ -1,16 +1,16 @@
 // config/config.go
 package config
 
-type tAppConfig struct {
-	Port     int
-	LogLevel string
+type AppConfigType struct {
+	Port       int
+	SocketPath string
 }
 
-var AppConfig *tAppConfig
+var AppConfig *AppConfigType
 
 func init() {
-	AppConfig = &tAppConfig{
-		Port:     8080,
-		LogLevel: "info",
+	AppConfig = &AppConfigType{
+		Port:       8080,
+		SocketPath: "/tmp/scarlett.sock",
 	}
 }
