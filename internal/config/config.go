@@ -11,6 +11,6 @@ var AppConfig *AppConfigType
 func init() {
 	AppConfig = &AppConfigType{
 		Port:       8080,
-		SocketPath: "/tmp/scarlett.sock",
+		SocketPath: "/var/run/scarlett.sock",
 	}
 }

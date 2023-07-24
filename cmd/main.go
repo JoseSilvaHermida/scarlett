@@ -2,6 +2,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"net"
@@ -15,42 +16,27 @@ import (
 )
 
 func main() {
-	fmt.Printf("Application Port: %d\n", config.AppConfig.Port)
-	fmt.Printf("Socket Path: %s\n", config.AppConfig.SocketPath)
-
-	// Create a Unix domain socket path.
-	socketPath := config.AppConfig.SocketPath
-
-	// Remove the socket file if it already exists.
-	os.Remove(socketPath)
-
 	// Register the /hello endpoint handler.
 	http.HandleFunc("/hello", handlers.HelloHandler)
 
 	// Create a custom HTTP server with Unix domain socket and TCP listener.
 	server := http.Server{}
 
-	// Create a listener for the Unix domain socket.
-	unixListener, err := net.Listen("unix", socketPath)
-	if err != nil {
-		log.Fatalf("Failed to create Unix socket listener: %v", err)
-	}
+	// Create UNIX socket listener
+	unixListener := createUnixListener()
 	defer unixListener.Close()
 
 	// Start the HTTP server on the Unix domain socket in a separate goroutine.
 	go func() {
-		log.Printf("Starting server on %s", socketPath)
+		log.Printf("Starting server on %s", config.AppConfig.SocketPath)
 		err := server.Serve(unixListener)
 		if err != nil && err != http.ErrServerClosed {
 			log.Fatalf("Failed to start Unix socket server: %v", err)
 		}
 	}()
 
-	// Create a listener for the HTTP server on localhost:8080.
-	httpListener, err := net.Listen("tcp", fmt.Sprintf("localhost:%d", config.AppConfig.Port))
-	if err != nil {
-		log.Fatalf("Failed to create HTTP listener: %v", err)
-	}
+	// Create HTTP listener
+	httpListener := createHttpListener()
 	defer httpListener.Close()
 
 	// Start the HTTP server on localhost:8080 in a separate goroutine.
@@ -68,13 +54,36 @@ func main() {
 	<-signalChan
 
 	// Shutdown both servers gracefully on receiving the signal.
-	err = server.Shutdown(nil)
+	err := server.Shutdown(context.TODO())
 	if err != nil {
 		log.Printf("Error while shutting down servers: %v", err)
 	}
 
 	// Remove the socket file on shutdown.
-	os.Remove(socketPath)
+	os.Remove(config.AppConfig.SocketPath)
 
 	log.Println("Servers gracefully shutdown")
+}
+
+func createUnixListener() net.Listener {
+	// Remove the socket file if it already exists.
+	os.Remove(config.AppConfig.SocketPath)
+
+	// Create a listener for the Unix domain socket.
+	unixListener, err := net.Listen("unix", config.AppConfig.SocketPath)
+	if err != nil {
+		log.Fatalf("Failed to create Unix socket listener: %v", err)
+	}
+
+	return unixListener
+}
+
+func createHttpListener() net.Listener {
+	// Create a listener for the HTTP server on localhost:8080.
+	httpListener, err := net.Listen("tcp", fmt.Sprintf("0.0.0.0:%d", config.AppConfig.Port))
+	if err != nil {
+		log.Fatalf("Failed to create HTTP listener: %v", err)
+	}
+
+	return httpListener
 }
