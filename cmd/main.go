@@ -23,8 +23,11 @@ func main() {
 	server := http.Server{}
 
 	// Create listeners
-	createUnixListener(&server)
-	createHttpListener(&server)
+	unixListener := createUnixListener(&server)
+	defer unixListener.Close()
+
+	httpListener := createHttpListener(&server)
+	defer httpListener.Close()
 
 	// Handle graceful shutdown on SIGINT and SIGTERM signals.
 	signalChan := make(chan os.Signal, 1)
@@ -43,7 +46,7 @@ func main() {
 	log.Println("Servers gracefully shutdown")
 }
 
-func createUnixListener(server *http.Server) {
+func createUnixListener(server *http.Server) net.Listener {
 	// Remove the socket file if it already exists.
 	os.Remove(config.AppConfig.SocketPath)
 
@@ -53,9 +56,6 @@ func createUnixListener(server *http.Server) {
 		log.Fatalf("Failed to create Unix socket listener: %v", err)
 	}
 
-	// Create UNIX socket listener
-	defer unixListener.Close()
-
 	// Start the HTTP server on the Unix domain socket in a separate goroutine.
 	go func() {
 		log.Printf("Starting server on %s", config.AppConfig.SocketPath)
@@ -64,16 +64,16 @@ func createUnixListener(server *http.Server) {
 			log.Fatalf("Failed to start Unix socket server: %v", err)
 		}
 	}()
+
+	return unixListener
 }
 
-func createHttpListener(server *http.Server) {
+func createHttpListener(server *http.Server) net.Listener {
 	// Create a listener for the HTTP server on localhost:8080.
 	httpListener, err := net.Listen("tcp", fmt.Sprintf("0.0.0.0:%d", config.AppConfig.Port))
 	if err != nil {
 		log.Fatalf("Failed to create HTTP listener: %v", err)
 	}
-
-	defer httpListener.Close()
 
 	// Start the HTTP server on localhost:8080 in a separate goroutine.
 	go func() {
@@ -83,4 +83,6 @@ func createHttpListener(server *http.Server) {
 			log.Fatalf("Failed to start HTTP server: %v", err)
 		}
 	}()
+
+	return httpListener
 }
