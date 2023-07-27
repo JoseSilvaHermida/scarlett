@@ -1,0 +1,15 @@
+[Unit]
+Description=Scarlett Daemon
+After=network.target
+
+[Service]
+User=scarlett
+Type=notify
+# This is going to be changed
+ExecStart=/opt/scarlett/scarlett
+ExecStop=/bin/kill -s STOP $MAINPID
+ExecReload=/bin/kill -s HUP $MAINPID
+NoNewPrivileges=true
+
+[Install]
+WantedBy=multi-user.target
